@@ -10,7 +10,8 @@ import ldap.sasl
 import ldif, ldap.modlist
 import ldaphelper
 
-dn = 'CN=ms-Exch-Transport-Inbound-Settings,CN=Schema,CN=Configuration,DC=zentyal,DC=lan'
+schemadn =  'CN=Schema,CN=Configuration,DC=zentyal,DC=lan'
+dn = 'CN=ms-Exch-Transport-Settings,' + schemadn
 filter = '(objectclass=*)'
 attrs = ['*']
 
@@ -24,7 +25,16 @@ try:
     raw_res = adconn.search_s( dn, ldap.SCOPE_BASE, filter, attrs )
     res = ldaphelper.get_search_results( raw_res )
     for record in res:
-        print record.oc_ldif()
+        print record.oc_ldif(schemadn)
+        subattrs = record.get_attr('mayContain')
+        if not subattrs:
+           continue
+        for subattr in subattrs:
+            filter = "(lDAPDisplayName=%s)" % subattr
+            sub_raw_res = adconn.search_s( schemadn, ldap.SCOPE_SUBTREE, filter, attrs )
+            sub_res = ldaphelper.get_search_results( sub_raw_res )
+            for subrecord in sub_res:
+                print subrecord.oc_ldif(schemadn)
 
 except ldap.LDAPError, e:
         print e

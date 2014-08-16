@@ -3,7 +3,6 @@ import ldif
 import commands
 from StringIO import StringIO
 
-schemadn =  'CN=Schema,CN=Configuration,DC=zentyal,DC=lan'
 schemavar = '${SCHEMADN}'
 base64_attrs = ['schemaIDGUID', 'objectGUID', 'attributeSecurityGUID']
 del_attrs = ['instanceType', 'msDS-IntId', 'objectGUID', 'uSNChanged',
@@ -26,7 +25,10 @@ def get_search_results(results):
     return res
 
 def guid_format(attr, ldif_str):
-    guid = re.findall("%s::\s([\w,=,+,/]+)" % attr, ldif_str)[0]
+    guid = re.findall("%s::\s([\w,=,+,/]+)" % attr, ldif_str)
+    if not guid:
+        return ldif_str
+    guid = guid[0]
     new_guid = commands.getstatusoutput('/usr/bin/schemaIDGUID %s' % guid)[1]
     ldif_str = ldif_str.replace("%s::" % attr, "%s:" % attr)
     ldif_str = ldif_str.replace(guid, new_guid)
@@ -54,7 +56,10 @@ class LDAPSearchResult:
             pass
 
     def get_attr(self, attr_name):
-        return self.attrs[attr_name]
+        try:
+            return self.attrs[attr_name]
+        except KeyError:
+            pass
 
     def set_attr(self, attr_name, attr_value):
         self.attrs[attr_name] = attr_value
@@ -70,7 +75,7 @@ class LDAPSearchResult:
         ldif_out.unparse(self.dn, self.attrs)
         return out.getvalue()
 
-    def oc_ldif(self):
+    def oc_ldif(self, schemadn):
         ldif_str = self.to_ldif()
         ldif_str = ldif_str.replace(schemadn, schemavar)
         ldif_str = guid_format('schemaIDGUID', ldif_str)
